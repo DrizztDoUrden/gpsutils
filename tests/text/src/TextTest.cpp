@@ -21,8 +21,8 @@ using namespace GPSU::Ansii;
 class TextTest
 {
 public:
-    void Run() const
-    {
+	void Run() const
+	{
 		std::wcout << L"[" << WAnsiiText(Ansii::Foreground(Colors::Green), L"Started") << L"] Test" << std::endl;
 		std::wcout << CSICode(CSICodes::DSR, 6);
 		
@@ -31,7 +31,7 @@ public:
 		
 		do
 		{
-			str += (c = getch());
+			str += (c = _getch());
 		} while (c != 'R');
 		
 		char* ptr;
@@ -53,11 +53,11 @@ public:
 		
 		std::wcout << CSICode(CSICodes::CPL) << CSICode(CSICodes::EL);
 		std::wcout.flush();
-    }
+	}
 };
 
 int main()
 {
-    TextTest().Run();
-    return 0;
+	TextTest().Run();
+	return 0;
 }

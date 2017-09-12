@@ -30,24 +30,25 @@ if not solutionDeclared then
 		filter "platforms:x32"
 			architecture "x32"
 		filter {}
+
+	    filter "action:vs*"
+		    buildoptions "/std:c++latest"
+		    defines { "WINDOWS", "VISUAL_STUDIO" }
+		    systemversion "10.0.15063.0"
 end
 
 GPSUtils = LibHelper(name)
 
 project "gpsutils"
-    location "."
+	location "."
 	language "C++"
 	cppdialect "C++17"
-	files { "src/**.cpp", "src/include/**.hpp", "include/**.hpp", "premake5.lua" }
+	files { "src/**.cpp", "src/include/**.hpp", "include/**.hpp", "include/**.h", "*.lua" }
 	includedirs { "src/include" }
-    kind "SharedLib"
+	kind "SharedLib"
 	defines "GPSU_EXPORT"
 	GPSUtils:Include()
-	
-	filter "action:vs*"
-		buildoptions "/std:c++latest"
-		defines { "WINDOWS", "VISUAL_STUDIO" }
-		systemversion "10.0.15063.0"
+
 	filter "system:not windows"
 		links { "dl", "stdc++fs" }
 	filter {}

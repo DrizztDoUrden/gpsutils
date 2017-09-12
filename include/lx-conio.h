@@ -1,3 +1,5 @@
+#ifndef WINDOWS
+
 /* Initialize new terminal i/o settings */
 void InitTermios(int echo) ;
 
@@ -8,7 +10,9 @@ void ResetTermios(void);
 char getch_(int echo);
 
 /* Read 1 character without echo */
-char getch(void);
+char _getch(void);
 
 /* Read 1 character with echo */
 char getche(void);
+
+#endif

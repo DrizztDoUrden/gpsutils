@@ -38,6 +38,7 @@ namespace GPSU
         inline void* operator new(size_t size) = delete;
         inline void* operator new(size_t size, Pool& pool) { return pool.Alloc(size); }
         inline void operator delete(void*) {}
+        inline void operator delete(void*, Pool& pool) {}
     };
     
     class PoolNewDelete
@@ -45,6 +46,7 @@ namespace GPSU
     public:
         inline void* operator new(size_t size, Pool& pool);
         inline void operator delete(void* ptr);
+        inline void operator delete(void*, Pool& pool);
         
     private:
         Pool* _pool;
@@ -149,12 +151,17 @@ namespace GPSU
     {
         static_cast<PoolNewDelete*>(ptr)->_pool->Free(ptr);
     }
+
+    void PoolNewDelete::operator delete(void* ptr, Pool& pool)
+    {
+        pool.Free(ptr);
+    }
     
     std::set<void*>::const_iterator DefaultBlockSearch::Find(const std::set<void*>& blocks, size_t size, const std::function<size_t(void*)>& sizeGetter)
     {
         std::set<void*>::const_iterator it;
         std::set<void*>::const_iterator best = blocks.cend();
-        int bestMetric = -1;
+        size_t bestMetric = -1;
         bool bestIsAliquot = false;
         
         for (it = blocks.cbegin(); it != blocks.cend(); it++)
@@ -171,7 +178,7 @@ namespace GPSU
             if (bSize < size)
                 continue;
             
-            int metric = bSize;
+            size_t metric = bSize;
             auto aliquot = (bSize % size == 0);
             
             if (metric > bestMetric && (aliquot || !bestIsAliquot) || aliquot && !bestIsAliquot)
@@ -215,7 +222,7 @@ namespace GPSU
     template<class TPool, class TBlockSearch>
     size_t Dynamic<TPool, TBlockSearch>::Used() const
     {
-        auto freedSum = 0;
+        size_t freedSum = 0;
         
         for (auto freed : _freed)
             freedSum += Size(freed);
@@ -261,7 +268,7 @@ namespace GPSU
     {
         ptr = FromOutterPtr(ptr);
         const auto oldSize = Size(ptr);
-        const auto delta = size - oldSize;
+        const long delta = static_cast<long>(size - oldSize);
         
         if (delta == 0)
             return ToOutterPtr(ptr);

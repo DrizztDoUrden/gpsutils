@@ -163,11 +163,11 @@ namespace GPSU
         
         inline void CodeList::Simplify()
         {
-            for (auto i = 1; i < Content().size(); i++)
+            for (auto i = 1u; i < Content().size(); i++)
             {
                 const auto& code = Content()[i];
                 
-                for (auto j = 0; j < i; j++)
+                for (auto j = 0u; j < i; j++)
                     if (code.Consumes(Content()[j]))
                     {
                         Remove(j);

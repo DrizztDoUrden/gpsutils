@@ -1,5 +1,7 @@
 #include "lx-conio.h"
 
+#ifndef WINDOWS
+
 #include <termios.h>
 #include <stdio.h>
 
@@ -33,7 +35,7 @@ char getch_(int echo)
 }
 
 /* Read 1 character without echo */
-char getch(void) 
+char _getch(void) 
 {
   return getch_(0);
 }
@@ -43,3 +45,5 @@ char getche(void)
 {
   return getch_(1);
 }
+
+#endif

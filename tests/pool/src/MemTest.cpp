@@ -13,20 +13,25 @@ class AutoPoolTest : public PoolNewDelete {};
 class MemTest
 {
 public:
-    void Run() const
-    {
+	WText Test(bool passed) const
+	{
+		return WAnsiiText(Foreground(passed ? Colors::Green : Colors::Red), passed ? L"Passed" : L"Failed");
+	}
+
+	void Run() const
+	{
 		const auto arraySize = 16;
 		StackPool<128> spool;
-		auto s0 = spool.Alloc(arraySize);
+		const auto s0 = spool.Alloc(arraySize);
 		std::unique_ptr<PoolTest> spt(new(spool) PoolTest);
 		
 		Prealloc<> ppool(1);
 		std::wcout << PoolSizeTest(ppool) << std::endl;
-		auto p0 = ppool.Alloc(arraySize);
+		const auto p0 = ppool.Alloc(arraySize);
 		std::unique_ptr<PoolTest> ppt(new(ppool) PoolTest);
 		
 		Dynamic<StackPool<128>> dspool;
-		auto ds0 = dspool.Alloc(arraySize);
+		const auto ds0 = dspool.Alloc(arraySize);
 		std::unique_ptr<AutoPoolTest> daspt(new(dspool) AutoPoolTest);
 		std::unique_ptr<PoolTest> dspt(new(dspool) PoolTest);
 		
@@ -35,7 +40,7 @@ public:
 		const int testValue = 10;
 		*dptest = testValue;
 		
-		auto secondTest = [&](std::wostream& s)
+		const auto secondTest = [&](std::wostream& s)
 		{
 			auto t2 = LogPtr(new(dppool) AutoPoolTest, L"+", s, L"");
 			s << " -> " << FormatBytes(dppool.Used()) << L"/" << FormatBytes(dppool.Limit()) << L" -> ";
@@ -44,23 +49,42 @@ public:
 		std::wcout << PoolSizeTest(dppool) << std::endl;
 		std::wcout << PoolSizeTest(dppool, secondTest) << std::endl;
 		
-		auto dp0 = dppool.Alloc(arraySize);
+		const auto dp0 = dppool.Alloc(arraySize);
 		std::unique_ptr<AutoPoolTest> dappt(new(dppool) AutoPoolTest);
 		std::unique_ptr<PoolTest> dppt(new(dppool) PoolTest);
 		
 		std::wcout << std::endl;
-		auto start = dppool.AllocationStart();
-		dppool.ResizeBuffer(16ul * 1024ul * 1024ul * 1024ul);
-		auto newStart = dppool.AllocationStart();
-		auto ohshi = dppool.Alloc(6 * 1024 * 1024);
-		
-		if (start != newStart)
+		const auto start = dppool.AllocationStart();
+		auto buffSize = static_cast<size_t>(1) << 34;
+
+		while (true)
+		{
+			auto resized = dppool.ResizeBuffer(buffSize);
+
+			if (resized)
+				break;
+
+			std::wcout << WAnsiiText(Foreground(Colors::Red), L"Resize has failed: ", FormatBytes(buffSize)) << std::endl;
+
+			if (buffSize <= 1024)
+				break;
+
+			buffSize /= 2;
+		}
+
+		std::wcout;
+		const auto newStart = dppool.AllocationStart();
+		const auto ohshi = dppool.Alloc(6 * 1024 * 1024);
+		const auto bufferMoved = start != newStart;
+
+		if (bufferMoved)
 		{
 			std::wcout << L"Buffer start has moved." << std::endl;
 			dptest = dptest - static_cast<int*>(start) + static_cast<int*>(newStart);
 		}
-		
-		std::wcout << L"Test: " << *dptest << " == " << testValue << std::endl;
+
+		std::wcout << L"Test: " << start << L" == " << newStart << L" -> " << Test(!bufferMoved) << std::endl;
+		std::wcout << L"Test: " << *dptest << L" == " << testValue << L" -> " << Test(*dptest == testValue) << std::endl;
 		
 		std::wcout << std::endl;
 		std::wcout << L"Stack pool:" << PoolStats(spool, s0, spt.get()) << std::endl;
@@ -71,7 +95,7 @@ public:
 		std::wcout << std::endl;
 		std::wcout << L"Dynamic stack pool ptr/data sizes: " << DynamicPoolStats(dspool, arraySize, ds0, dspt.get(), daspt.get()) << std::endl;
 		std::wcout << L"Dynamic prealoc ptr/data sizes: "    << DynamicPoolStats(dppool, arraySize, dp0, dppt.get(), dappt.get()) << std::endl;
-    }
+	}
 
 private:
 	inline void FormatPart(std::wostream& s, size_t bytes, size_t K, size_t part, const wchar_t* name, bool forceShow = false) const
@@ -99,7 +123,7 @@ private:
 		FormatPart(ss, bytes, K, GB, L"G");
 		FormatPart(ss, bytes, K, MB, L"M");
 		FormatPart(ss, bytes, K, KB, L"K");
-		FormatPart(ss, bytes, K,  B, L"", ss.tellp() == 0);
+		FormatPart(ss, bytes, K,  B, L"", static_cast<size_t>(ss.tellp()) == 0);
 		
 		ss << L"B";
 		
@@ -158,6 +182,6 @@ private:
 
 int main()
 {
-    MemTest().Run();
-    return 0;
+	MemTest().Run();
+	return 0;
 }
