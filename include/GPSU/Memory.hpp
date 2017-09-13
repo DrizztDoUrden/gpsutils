@@ -37,7 +37,6 @@ namespace GPSU
     public:
         inline void* operator new(size_t size) = delete;
         inline void* operator new(size_t size, Pool& pool) { return pool.Alloc(size); }
-        inline void operator delete(void*) {}
         inline void operator delete(void*, Pool& pool) {}
     };
     

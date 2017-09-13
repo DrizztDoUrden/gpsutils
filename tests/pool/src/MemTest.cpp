@@ -1,3 +1,4 @@
+#include <iomanip>
 #include <iostream>
 #include <sstream>
 
@@ -10,30 +11,31 @@ using namespace GPSU::Ansii;
 class PoolTest : public PoolNew {};
 class AutoPoolTest : public PoolNewDelete {};
 
+enum class LogPtrMod
+{
+	Alloc,
+	Free,
+};
+
 class MemTest
 {
 public:
-	WText Test(bool passed) const
-	{
-		return WAnsiiText(Foreground(passed ? Colors::Green : Colors::Red), passed ? L"Passed" : L"Failed");
-	}
-
 	void Run() const
 	{
 		const auto arraySize = 16;
 		StackPool<128> spool;
 		const auto s0 = spool.Alloc(arraySize);
-		std::unique_ptr<PoolTest> spt(new(spool) PoolTest);
+		auto spt = new(spool) PoolTest;
 		
 		Prealloc<> ppool(1);
 		std::wcout << PoolSizeTest(ppool) << std::endl;
 		const auto p0 = ppool.Alloc(arraySize);
-		std::unique_ptr<PoolTest> ppt(new(ppool) PoolTest);
+		auto ppt = new(ppool) PoolTest;
 		
 		Dynamic<StackPool<128>> dspool;
 		const auto ds0 = dspool.Alloc(arraySize);
 		std::unique_ptr<AutoPoolTest> daspt(new(dspool) AutoPoolTest);
-		std::unique_ptr<PoolTest> dspt(new(dspool) PoolTest);
+		auto dspt = new(dspool) PoolTest;
 		
 		Dynamic<Prealloc<ResizePolicy::NotAllowed>> dppool(256);
 		auto dptest = static_cast<int*>(dppool.Alloc(sizeof(int)));
@@ -42,8 +44,8 @@ public:
 		
 		const auto secondTest = [&](std::wostream& s)
 		{
-			auto t2 = LogPtr(new(dppool) AutoPoolTest, L"+", s, L"");
-			s << " -> " << FormatBytes(dppool.Used()) << L"/" << FormatBytes(dppool.Limit()) << L" -> ";
+			auto t2 = LogPtr(new(dppool) PoolTest, LogPtrMod::Alloc, s, L"");
+			s << " -> " << std::setw(8) << FormatBytes(dppool.Used()) << L"/" << std::setw(8) << std::left << FormatBytes(dppool.Limit()) << std::right << L" -> ";
 		};
 		
 		std::wcout << PoolSizeTest(dppool) << std::endl;
@@ -51,7 +53,7 @@ public:
 		
 		const auto dp0 = dppool.Alloc(arraySize);
 		std::unique_ptr<AutoPoolTest> dappt(new(dppool) AutoPoolTest);
-		std::unique_ptr<PoolTest> dppt(new(dppool) PoolTest);
+		auto dppt = new(dppool) PoolTest;
 		
 		std::wcout << std::endl;
 		const auto start = dppool.AllocationStart();
@@ -83,21 +85,26 @@ public:
 			dptest = dptest - static_cast<int*>(start) + static_cast<int*>(newStart);
 		}
 
-		std::wcout << L"Test: " << start << L" == " << newStart << L" -> " << Test(!bufferMoved) << std::endl;
-		std::wcout << L"Test: " << *dptest << L" == " << testValue << L" -> " << Test(*dptest == testValue) << std::endl;
+		std::wcout << L"Test: " << std::setw(16) << start << L" == " << std::left << std::setw(16) << newStart << std::right << L" -> " << Test(!bufferMoved) << std::endl;
+		std::wcout << L"Test: " << std::setw(16) << *dptest << L" == " << std::left << std::setw(16) << testValue << std::right << L" -> " << Test(*dptest == testValue) << std::endl;
 		
 		std::wcout << std::endl;
-		std::wcout << L"Stack pool:" << PoolStats(spool, s0, spt.get()) << std::endl;
-		std::wcout << L"Prealloc pool:" << PoolStats(ppool, p0, ppt.get()) << std::endl;
-		std::wcout << L"Dynamic stack pool:" << PoolStats(dspool, ds0, dspt.get()) << std::endl;
-		std::wcout << L"Dynamic prealloc pool:" << PoolStats(dppool, dp0, dppt.get()) << std::endl;
+		std::wcout << L"Stack pool:            " << PoolStats(spool, s0, spt) << std::endl;
+		std::wcout << L"Prealloc pool:         " << PoolStats(ppool, p0, ppt) << std::endl;
+		std::wcout << L"Dynamic stack pool:    " << PoolStats(dspool, ds0, dspt) << std::endl;
+		std::wcout << L"Dynamic prealloc pool: " << PoolStats(dppool, dp0, dppt) << std::endl;
 		
 		std::wcout << std::endl;
-		std::wcout << L"Dynamic stack pool ptr/data sizes: " << DynamicPoolStats(dspool, arraySize, ds0, dspt.get(), daspt.get()) << std::endl;
-		std::wcout << L"Dynamic prealoc ptr/data sizes: "    << DynamicPoolStats(dppool, arraySize, dp0, dppt.get(), dappt.get()) << std::endl;
+		std::wcout << L"Dynamic stack pool ptr/data sizes: " << DynamicPoolStats(dspool, arraySize, ds0, dspt, daspt.get()) << std::endl;
+		std::wcout << L"Dynamic prealoc ptr/data sizes:    " << DynamicPoolStats(dppool, arraySize, dp0, dppt, dappt.get()) << std::endl;
 	}
 
 private:
+	WText Test(bool passed) const
+	{
+		return WAnsiiText(Foreground(passed ? Colors::Green : Colors::Red), passed ? L"Passed" : L"Failed");
+	}
+
 	inline void FormatPart(std::wostream& s, size_t bytes, size_t K, size_t part, const wchar_t* name, bool forceShow = false) const
 	{
 		if (!forceShow && bytes % (part * K) < part)
@@ -130,10 +137,13 @@ private:
 		return ss.str();
 	}
 
-	template<class TTarget, class TPostfix = std::wostream&(*)(std::wostream&)>
-	inline TTarget* LogPtr(TTarget* ptr, const wchar_t* prefix = L"+", std::wostream& s = std::wcout, TPostfix postfix = &std::endl) const
+	template<class TTarget, class TPrefix = const wchar_t*, class TPostfix = std::wostream&(*)(std::wostream&)>
+	inline TTarget* LogPtr(TTarget* ptr, LogPtrMod mod, std::wostream& s = std::wcout, TPostfix postfix = &std::endl, TPrefix prefix = L"") const
 	{
-		s << prefix << ptr << postfix;
+		const auto sign = mod == LogPtrMod::Alloc ? L'+' : L'-';
+		const auto color = mod == LogPtrMod::Alloc ? Colors::Blue : Colors::Magenta;
+
+		s << prefix << WAnsiiText(Foreground(color), sign, ptr) << postfix;
 		return ptr;
 	}
 
@@ -141,12 +151,12 @@ private:
 	{
 		std::wostringstream ss;
 		
-		ss << FormatBytes(pool.Used()) << L"/" << FormatBytes(pool.Limit()) << L" -> ";
-		auto t = LogPtr(new(pool) AutoPoolTest, L"+", ss, L"");
-		ss << L" -> " << FormatBytes(pool.Used()) << L"/" << FormatBytes(pool.Limit()) << L" -> ";
+		ss << std::setw(8) << FormatBytes(pool.Used()) << L"/" << std::setw(8) << std::left << FormatBytes(pool.Limit()) << std::right << L" -> ";
+		auto t = LogPtr(new(pool) AutoPoolTest, LogPtrMod::Alloc, ss, L"");
+		ss << L" -> " << std::setw(8) << FormatBytes(pool.Used()) << L"/" << std::setw(8) << std::left << FormatBytes(pool.Limit()) << std::right << L" -> ";
 		beforeDelete(ss);
-		delete LogPtr(t, L"-", ss, L"");
-		ss << L" -> " << FormatBytes(pool.Used()) << L"/" << FormatBytes(pool.Limit());
+		delete LogPtr(t, LogPtrMod::Free, ss, L"");
+		ss << L" -> " << std::setw(8) << FormatBytes(pool.Used()) << L"/" << std::setw(8) << std::left << FormatBytes(pool.Limit()) << std::right;
 		
 		return ss.str();
 	}
@@ -155,11 +165,10 @@ private:
 	{
 		std::wostringstream ss;
 		
-		ss << L"                                                                                  "
-			<< CSICode(CSICodes::CHA, 25) << ptr0
-			<< CSICode(CSICodes::CHA, 45) << ptr1
-			<< CSICode(CSICodes::CHA, 65) << L"delta: " << (reinterpret_cast<char*>(ptr1) - reinterpret_cast<char*>(ptr0))
-			<< CSICode(CSICodes::CHA, 80) << L"stats: " << FormatBytes(pool.Used()) << L"/" << FormatBytes(pool.Limit());
+		ss	<<   L"ptr0: " << std::setw(16) << ptr0
+			<< L", ptr0: " << std::setw(16) << ptr1
+			<< L", delta: " << std::setw(4) << FormatBytes(reinterpret_cast<char*>(ptr1) - reinterpret_cast<char*>(ptr0))
+			<< L", stats: " << std::setw(8) << FormatBytes(pool.Used()) << L"/" << std::setw(8) << std::left << FormatBytes(pool.Limit()) << std::right;
 		
 		return ss.str();
 	}
@@ -172,7 +181,7 @@ private:
 	}
 
 	template<class TPool>
-	inline std::wstring DynamicPoolStats(Dynamic<TPool>& pool, size_t arraySize, void* ptr0, void* pt, void* apt) const
+	inline std::wstring DynamicPoolStats(Dynamic<TPool>& pool, size_t arraySize, void* ptr0, PoolTest* pt, AutoPoolTest* apt) const
 	{
 		return DynamicPtrSize(pool, ptr0, arraySize) + L", "
 			 + DynamicPtrSize(pool, pt, sizeof(PoolTest)) + L", "

@@ -43,7 +43,7 @@ project "gpsutils"
 	location "."
 	language "C++"
 	cppdialect "C++17"
-	files { "src/**.cpp", "src/include/**.hpp", "include/**.hpp", "include/**.h", "*.lua" }
+	files { "src/**.cpp", "src/include/**.hpp", "src/include/**.tpp", "include/**.hpp", "include/**.tpp", "include/**.h", "*.lua" }
 	includedirs { "src/include" }
 	kind "SharedLib"
 	defines "GPSU_EXPORT"

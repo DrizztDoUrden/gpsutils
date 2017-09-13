@@ -18,6 +18,8 @@
 using namespace GPSU;
 using namespace GPSU::Ansii;
 
+using endl_t = std::wostream&(*)(std::wostream&);
+
 class TextTest
 {
 public:
@@ -53,6 +55,8 @@ public:
 		
 		std::wcout << CSICode(CSICodes::CPL) << CSICode(CSICodes::EL);
 		std::wcout.flush();
+
+		std::wcout << L"Test0 " << WText(L"123", (endl_t)&std::endl, L"456") << L" Test1" << std::endl;
 	}
 };
 
